@@ -1,1 +1,280 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+public enum playerstate { Bleed,Dead,Play,Shot,Reload,Hit,End}
+public class Player_Control : MonoBehaviour
+{
+    public GameObject Bullet;
+    public Transform FirePos;
+
+    float backmove;
+    bool isfire;
+    /////////////////////////////////////////////////
+
+    public Animator playerani;
+    public playerstate pstate=playerstate.Play;
+
+    public AudioClip[] Sound; //--------------------------------
+    AudioSource myaudio; //--------------------------------
+
+    public float h = 0.0f;
+    public float v = 0.0f;
+    public float r = 0.0f;
+    
+    public float moveSpeed = 5f;
+    //public float rotSpeed = 5f;
+    public float jumpSpeed = 5f;
+    public bool isGrounded = false;
+    public int jumpCount = 2;
+    public int test;
+    public Transform tr;
+    Rigidbody rb;
+    public static float plife = 100f;
+    public Slider playerlife;
+    public Text txt_coin;
+    public static int coin = 0;
+
+    public Stg1main_control stg1main_control; //
+    
+
+
+   //Vector3 left;
+   // Vector3 right;
+    void Data()
+    {
+     pstate = playerstate.Play;
+     h = 0.0f;
+     v = 0.0f;
+     r = 0.0f;
+     moveSpeed = 5f;
+     //rotSpeed = 5f;
+     jumpSpeed = 5f;
+     isGrounded = false;
+     jumpCount = 2;
+     plife = 100f;
+     
+    
+
+}
+
+    void Start()
+    {
+        Data();
+
+        myaudio = this.GetComponent<AudioSource>(); //-------------------------------- 
+        pstate = playerstate.Play; //--------------------------------
+
+        tr = GetComponent<Transform>();
+        rb = GetComponent<Rigidbody>();
+        jumpCount = 0;
+
+        coin = 0;
+        showUI();
+        isfire = false;
+
+        stg1main_control = FindObjectOfType(typeof(Stg1main_control)) as Stg1main_control; //
+
+
+    }
+    void SoundPlay(int num) //--------------------------------
+    {
+
+        myaudio.clip = Sound[num]; //--------------------------------
+        myaudio.Play(); //--------------------------------
+
+    }
+
+   
+    void Update()
+    {
+
+
+        h = Input.GetAxis("Horizontal");
+        v = Input.GetAxis("Vertical");
+        r = Input.GetAxis("Mouse X");
+
+        if(Input.GetKey(KeyCode.RightArrow))/////////
+        {
+            transform.position = new Vector3(2f, this.transform.position.y, this.transform.position.z);
+        }
+        if (Input.GetKey(KeyCode.LeftArrow))///////////////
+        {
+            transform.position = new Vector3(-5f, this.transform.position.y, this.transform.position.z);
+        }
+        if (Input.GetKeyDown(KeyCode.Space) == true)  //애니메이션 코드
+        {
+            Shot();
+        }
+        // Vector3 moveDir = (Vector3.right * h*Time.deltaTime);
+
+        // tr.Translate(moveDir.normalized * moveSpeed*Time.deltaTime);
+
+        //tr.Rotate(Vector3.up  * h);
+        this.transform.position = new Vector3(
+                                        Mathf.Clamp(this.transform.position.x, -5f, 2f), this.transform.position.y, this.transform.position.z);
+        ///////////////////////////
+
+        
+
+        if (isGrounded)
+        {
+            if (jumpCount > 0)
+            {
+                if (Input.GetKeyDown(KeyCode.UpArrow))
+                {
+                    rb.AddForce(new Vector3(0, 1, 0) * jumpSpeed, ForceMode.Impulse);
+                    jumpCount--;
+                    SoundPlay(3); //--------------------------------
+                }
+            }
+        }
+        print("remaining player life"+plife);
+
+        
+        if (plife <= 0)
+        {
+            pstate = playerstate.Dead;
+            SceneManager.LoadScene("#_Gameoverscene");
+            plife = 100;
+        }
+        
+        showUI();
+        //float retval = Mathf.Clamp(transform.position.x, -5f, 2f);
+
+        if (Input.GetButton("Jump"))
+        {
+
+            Instantiate(Bullet, FirePos.transform.position, FirePos.transform.rotation);
+            isfire = true;
+            //transform.Translate(Vector3.back * 15f * backmove);
+            SoundPlay(1);
+      
+        }
+
+        if (isfire)
+        {
+            backmove += Time.deltaTime;
+        }
+
+        if (backmove > 0 && backmove <= 0.1f)
+        {
+            transform.Translate(Vector3.back * 1 * backmove);
+
+        }
+        else if (backmove > 1)
+        {
+            isfire = false;
+            backmove = 0;
+        }
+
+    }
+    void showUI()
+    {
+        txt_coin.text = coin.ToString(); //코인카운트
+        playerlife.value = plife;         //슬라이더
+    }
+    void Shot()
+    {
+
+        playerani.SetTrigger("Shot"); 
+        pstate = playerstate.Shot;
+        SoundPlay(1); //-------------------------------
+     
+
+    }
+    void Reload()
+    {
+        playerani.SetTrigger("Reload"); //
+                                        // playerani.SetBool("Run", false); //
+        pstate = playerstate.Reload;
+
+    }
+    void Play()
+    {
+        // playerani.SetBool("Run", true); //
+        pstate = playerstate.Play;
+    }
+    void Hit()
+    {
+        playerani.SetBool("Hit", true); //
+        pstate = playerstate.Hit;
+    }
+    void bleeding()
+    {
+       // playerani.SetTrigger("");
+    }
+    void CoinGet() //-----
+    {
+        coin++;
+        txt_coin.text = coin.ToString();
+        //SoundPlay(0); //
+        SoundPlay(0); //-------------------------------
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        
+       
+        if(other.gameObject.tag=="finishline")
+        {
+            if(coin>=10)
+            {
+                print("끝 피니쉬");
+                pstate = playerstate.End;
+                SceneManager.LoadScene("#_Clearscene");
+            }
+            if(coin<10)
+            {
+                print("not enough money");
+                SceneManager.LoadScene("#_Notenoughmoneyscene");
+            }
+            
+
+        }
+        if (other.gameObject.tag == "Deadzone")
+        {
+            print("끝 엔드");
+            pstate = playerstate.End;
+            SceneManager.LoadScene("#_Deadscene");
+
+        }
+        if (other.gameObject.tag == "coin")
+        {
+            Destroy(other.gameObject);
+            CoinGet(); 
+        }
+        if (other.gameObject.tag == "box")
+        {
+            plife -= 100;
+        }
+
+    }
+
+    private void OnCollisionEnter(Collision col)
+
+    {
+        if (col.gameObject.tag == "Ground")
+        {
+            isGrounded = true;
+            jumpCount = 2;
+        }
+        if (col.gameObject.tag == "zombie")
+        {
+
+            pstate = playerstate.Bleed;
+            bleeding();
+            plife -= 20f;
+            SoundPlay(2); //----------------------------
+
+        }
+        if (col.gameObject.tag == "human")
+        {
+            pstate = playerstate.Bleed;
+            bleeding();
+            plife -= 15f;
+            SoundPlay(2); //-------------------------------
+        }
+    }
+}
 
